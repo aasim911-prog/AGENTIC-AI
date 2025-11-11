@@ -7,7 +7,7 @@ APP_NAME = "doc_writing_app_v3" # New App Name
 USER_ID = "dev_user_01"
 SESSION_ID_BASE = "loop_exit_tool_session" # New Base Session ID
 GEMINI_MODEL = "gemini-2.0-flash"
-STATE_INITIAL_TOPIC = "Tesla EV Car"
+STATE_INITIAL_TOPIC = "car"
 
 # --- State Keys ---
 STATE_CURRENT_DOC = "current_document"
@@ -97,4 +97,25 @@ refiner_agent_in_loop = LlmAgent(
     description="Refines the document based on critique, or calls exit_loop if critique indicates completion.",
     tools=[exit_loop], # Provide the exit_loop tool
     output_key=STATE_CURRENT_DOC # Overwrites state['current_document'] with the refined version
+)
+# STEP 2: Refinement Loop Agent
+refinement_loop = LoopAgent(
+    name="RefinementLoop",
+    # Agent order is crucial: Critique first, then Refine/Exit
+    sub_agents=[
+        critic_agent_in_loop,
+        refiner_agent_in_loop,
+    ],
+    max_iterations=5 # Limit loops
+)
+
+# STEP 3: Overall Sequential Pipeline
+# For ADK tools compatibility, the root agent must be named `root_agent`
+root_agent = SequentialAgent(
+    name="IterativeWritingPipeline",
+    sub_agents=[
+        initial_writer_agent, # Run first to create initial doc
+        refinement_loop       # Then run the critique/refine loop
+    ],
+    description="Writes an initial document and then iteratively refines it with critique using an exit tool."
 )
